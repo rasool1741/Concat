@@ -101,6 +101,7 @@ export component CaptionsDialog inherits Modal {
     callback cancel();
     callback import-srt();
     callback export-srt();
+    callback export-ass();
 
     property <bool> from-voice: root.data.from-voice;
 
@@ -496,6 +497,15 @@ export component CaptionsDialog inherits Modal {
                     label: I18n.t("captions.exportSrt");
                     clicked => { root.export-srt(); }
                 }
+            }
+            // The same lane with each title's look: font, colour, outline,
+            // shadow, plate and place, for a player or editor that reads ASS.
+            if !root.data.running: Button {
+                block: true;
+                ghost: true;
+                glyph: Glyph.export;
+                label: I18n.t("captions.exportAss");
+                clicked => { root.export-ass(); }
             }
         }
     }

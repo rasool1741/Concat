@@ -90,6 +90,10 @@ pub enum CaptionsMsg {
     ExportSrt,
     /// Where they go.
     ExportSrtTo(PathBuf),
+    /// Asks where to write the captions as ASS, with their look.
+    ExportAss,
+    /// Where they go.
+    ExportAssTo(PathBuf),
 }
 
 /// The clip a transcription is running over, as the finished segments
@@ -341,6 +345,8 @@ impl CaptionsPane {
             CaptionsMsg::ImportSrtFrom(path) => self.import_srt(studio, &path),
             CaptionsMsg::ExportSrt => self.ask_export_srt(studio),
             CaptionsMsg::ExportSrtTo(path) => self.export_srt(studio, &path),
+            CaptionsMsg::ExportAss => self.ask_export_ass(studio),
+            CaptionsMsg::ExportAssTo(path) => self.export_ass(studio, &path),
         }
     }
 
@@ -478,6 +484,83 @@ impl CaptionsPane {
         );
         if !handed {
             say(studio, &path.display().to_string());
+        }
+    }
+
+    /// Asks where to write the captions as ASS: the same lane the SubRip
+    /// export would write, with each title's look.
+    fn ask_export_ass(&mut self, studio: &mut Studio) {
+        if export_lane(studio).is_none() {
+            self.message = t("captions.noCaptionsToExport");
+            return;
+        }
+        let name = format!("{}.ass", file_stem(studio));
+        let folder = studio
+            .session
+            .as_ref()
+            .map(|session| PathBuf::from(session.path()))
+            .unwrap_or_else(|| PathBuf::from(crate::studio::home_folder("Documents")));
+        if cfg!(any(target_os = "android", target_os = "ios")) {
+            let path = unique_path(&folder, &name);
+            self.export_ass(studio, &path);
+            return;
+        }
+        let title = t("captions.exportAss");
+        let family = t("captions.assSubtitles");
+        crate::host::after_dialog(
+            move || {
+                let chosen = crate::platform::save_file(
+                    &title,
+                    &folder,
+                    &name,
+                    (family.as_str(), &["ass"]),
+                )?;
+                Some(
+                    if chosen
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("ass"))
+                    {
+                        chosen
+                    } else {
+                        chosen.with_extension("ass")
+                    },
+                )
+            },
+            |studio, _, _, path| studio.handle(Msg::Captions(CaptionsMsg::ExportAssTo(path))),
+        );
+    }
+
+    /// Writes the captions to `path` as ASS, and says what the format
+    /// could not carry rather than leaving it out silently.
+    fn export_ass(&mut self, studio: &mut Studio, path: &Path) {
+        let Some(lane) = export_lane(studio) else {
+            self.message = t("captions.noCaptionsToExport");
+            return;
+        };
+        let (width, height) = studio.output_size();
+        let out =
+            concat_project::ass::write(studio.timeline(), Some(&lane.track_id), width, height);
+        if let Err(error) = std::fs::write(path, out.text.as_bytes()) {
+            log::warn!("captions: could not write {}: {error}", path.display());
+            self.message = tf("captions.couldNotWriteSubtitles", &[&error]);
+            return;
+        }
+        log::info!(
+            "captions: wrote {} event(s) to {}",
+            out.events,
+            path.display()
+        );
+        self.open = false;
+        let said = tf(
+            "captions.exportedCaptions",
+            &[&out.events, &path.display().to_string()],
+        );
+        studio.notify(&said, false);
+        if !out.warnings.is_empty() {
+            studio.notify(
+                &tf("captions.assNotCarried", &[&out.warnings.join(" ")]),
+                true,
+            );
         }
     }
 

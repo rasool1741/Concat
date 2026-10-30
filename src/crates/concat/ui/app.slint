@@ -327,6 +327,7 @@ export component App inherits Window {
     callback captions-cancel();
     callback captions-import-srt();
     callback captions-export-srt();
+    callback captions-export-ass();
 
     in property <SpeechSheetData> speech;
     in property <[string]> speech-models;
@@ -712,6 +713,7 @@ export component App inherits Window {
             cancel => { root.captions-cancel(); }
             import-srt => { root.captions-import-srt(); }
             export-srt => { root.captions-export-srt(); }
+            export-ass => { root.captions-export-ass(); }
         }
 
         SpeechDialog {
