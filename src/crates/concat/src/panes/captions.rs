@@ -24,11 +24,15 @@ use concat_project::model::{ClipKind, TextStyle};
 use concat_project::srt;
 use concat_speech::JobStage;
 use concat_speech::transcribe::Segment;
+use concat_gemini::job::{self, JobOptions, Stage as GeminiStage};
+use concat_gemini::{ApiKey, Client as GeminiClient, GeminiError};
 
 use crate::host::{on_ui_in_project, spawn_in_project};
 use crate::i18n::{t, tf};
 use crate::panes::Msg;
+use crate::panes::gemini_captions::{self, GeminiState};
 use crate::panes::pace::{Pace, Stage, Timings};
+use crate::secret::{KeyStore, OsKeyStore};
 use crate::panes::settings::installed;
 use crate::studio::Studio;
 use crate::ui::CaptionsSheetData;
@@ -57,6 +61,18 @@ pub enum CaptionsMsg {
     SourceChanged(i32),
     TextEdited(String),
     ModelChanged(i32),
+    /// 0 the local transcriber, 1 Gemini.
+    EngineChanged(i32),
+    /// A key typed in the sheet, to be kept in the credential store.
+    GeminiKeySaved(String),
+    /// Forget the saved key.
+    GeminiKeyCleared,
+    /// Try the key and list the models it can see.
+    GeminiTest,
+    /// The connection test finished: the model ids, or why not.
+    GeminiTested(Result<Vec<String>, GeminiError>),
+    GeminiModelChanged(i32),
+    GeminiLanguageChanged(i32),
     PlacementChanged(i32),
     SizeChanged(i32),
     /// Run the pass the sheet describes.
@@ -115,6 +131,10 @@ pub struct CaptionsPane {
     pub text: String,
     /// Row in the installed transcriber list.
     pub model: usize,
+    /// 0 the local transcriber, 1 Gemini.
+    pub engine: usize,
+    /// The Gemini engine's state.
+    pub gemini: GeminiState,
     /// 0 bottom, 1 centre, 2 top.
     pub placement: usize,
     /// 0 small, 1 medium, 2 large.
@@ -170,12 +190,81 @@ impl CaptionsPane {
             }
             CaptionsMsg::TextEdited(text) => self.text = text,
             CaptionsMsg::ModelChanged(index) => self.model = index.max(0) as usize,
+            CaptionsMsg::EngineChanged(index) => {
+                self.engine = (index.max(0) as usize).min(1);
+                self.message.clear();
+                studio.prefs.captions_engine =
+                    (self.engine == 1).then(|| "gemini".to_owned());
+                studio.prefs.save(&studio.host.dirs);
+                self.refresh_key();
+            }
+            CaptionsMsg::GeminiKeySaved(text) => {
+                let key = text.trim();
+                if key.is_empty() {
+                    self.gemini.status = t("captions.geminiKeyEmpty");
+                } else {
+                    match OsKeyStore.save(key) {
+                        Ok(()) => {
+                            self.gemini.key_saved = true;
+                            self.gemini.status = t("captions.geminiKeySaved");
+                            self.message.clear();
+                        }
+                        Err(error) => {
+                            self.message = tf("captions.geminiKeyNotSaved", &[&error]);
+                        }
+                    }
+                }
+            }
+            CaptionsMsg::GeminiKeyCleared => match OsKeyStore.clear() {
+                Ok(()) => {
+                    self.gemini.key_saved = false;
+                    self.gemini.status = t("captions.geminiKeyRemoved");
+                }
+                Err(error) => self.message = tf("captions.geminiKeyNotSaved", &[&error]),
+            },
+            CaptionsMsg::GeminiTest => self.test_gemini(),
+            CaptionsMsg::GeminiTested(result) => {
+                self.gemini.testing = false;
+                match result {
+                    Ok(ids) => {
+                        let wanted = self.gemini.chosen_model();
+                        let seen = ids.iter().any(|id| *id == wanted);
+                        self.gemini.set_models(ids);
+                        self.message = if seen {
+                            String::new()
+                        } else {
+                            gemini_captions::say(&GeminiError::ModelUnavailable(wanted))
+                        };
+                        self.gemini.status = tf(
+                            "captions.geminiConnected",
+                            &[&self.gemini.model_names().len()],
+                        );
+                    }
+                    Err(error) => {
+                        self.gemini.status.clear();
+                        self.message = gemini_captions::say(&error);
+                    }
+                }
+            }
+            CaptionsMsg::GeminiModelChanged(index) => {
+                self.gemini.model = index.max(0) as usize;
+                studio.prefs.gemini_model = Some(self.gemini.chosen_model());
+                studio.prefs.save(&studio.host.dirs);
+            }
+            CaptionsMsg::GeminiLanguageChanged(index) => {
+                self.gemini.language = index.max(0) as usize;
+                studio.prefs.gemini_language =
+                    self.gemini.language_code().map(str::to_owned);
+                studio.prefs.save(&studio.host.dirs);
+            }
             CaptionsMsg::PlacementChanged(index) => {
                 self.placement = (index.max(0) as usize).min(2);
             }
             CaptionsMsg::SizeChanged(index) => self.size = (index.max(0) as usize).min(2),
             CaptionsMsg::Begin => {
-                if self.from_voice {
+                if self.from_voice && self.engine == 1 {
+                    self.run_gemini(studio);
+                } else if self.from_voice {
                     self.run_sound(studio);
                 } else {
                     self.run_script(studio);
@@ -183,6 +272,9 @@ impl CaptionsPane {
             }
             CaptionsMsg::Cancel => {
                 studio.host.transcriber.cancel();
+                if let Some(flag) = &self.gemini.cancel {
+                    flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
                 self.running = false;
                 self.open = false;
             }
@@ -406,11 +498,20 @@ impl CaptionsPane {
                 .then(|| sources.first().map(|source| source.id.clone()))
                 .flatten()
         });
+        let mut gemini = std::mem::take(&mut self.gemini);
+        if let Some(id) = studio.prefs.gemini_model.as_deref() {
+            gemini.choose_model(id);
+        }
+        gemini.choose_language(studio.prefs.gemini_language.as_deref());
+        gemini.key_saved = OsKeyStore.load().is_ok_and(|key| key.is_some());
+        gemini.status.clear();
         *self = CaptionsPane {
             open: true,
             from_voice,
             clip,
             chosen_with: studio.sole_selection(),
+            engine: usize::from(studio.prefs.captions_engine.as_deref() == Some("gemini")),
+            gemini,
             model,
             placement: 0,
             size: 1,
@@ -464,6 +565,123 @@ impl CaptionsPane {
         self.open = false;
         studio.apply(Command::Batch { commands });
         studio.notify(&tf("captions.addedCaptions", &[&count]), false);
+    }
+
+    /// Whether a key is saved, asked of the credential store.
+    fn refresh_key(&mut self) {
+        self.gemini.key_saved = OsKeyStore.load().is_ok_and(|key| key.is_some());
+    }
+
+    /// The saved key against the service, off the UI thread: it says which
+    /// models the key can see, and whether the one chosen is among them.
+    fn test_gemini(&mut self) {
+        if self.gemini.testing {
+            return;
+        }
+        let key = match OsKeyStore.load() {
+            Ok(Some(key)) => key,
+            Ok(None) => {
+                self.message = gemini_captions::say(&GeminiError::NoKey);
+                return;
+            }
+            Err(error) => {
+                self.message = tf("captions.geminiKeyNotSaved", &[&error]);
+                return;
+            }
+        };
+        self.gemini.testing = true;
+        self.gemini.status.clear();
+        self.message.clear();
+        crate::host::spawn(
+            move || {
+                GeminiClient::new(ApiKey::new(&key))
+                    .test_connection(None)
+                    .map(|models| models.into_iter().map(|model| model.id).collect::<Vec<_>>())
+            },
+            |studio, _, _, result| studio.handle(Msg::Captions(CaptionsMsg::GeminiTested(result))),
+        );
+    }
+
+    /// The sheet's clip through Gemini on a worker. The sound goes out in
+    /// windows, and the segments that come back are the ones the local
+    /// transcriber makes, so they land on the timeline the same way.
+    fn run_gemini(&mut self, studio: &mut Studio) {
+        let Some(clip) = self
+            .subject_clip(studio, &sources(studio))
+            .and_then(|id| studio.clip(&id))
+            .cloned()
+        else {
+            self.message = t("captions.clipNoLongerTimeline");
+            return;
+        };
+        let Some(media) = studio.project().media_by_id(&clip.media_id).cloned() else {
+            self.message = t("captions.clipHasNoFile");
+            return;
+        };
+        let key = match OsKeyStore.load() {
+            Ok(Some(key)) => key,
+            Ok(None) => {
+                self.message = gemini_captions::say(&GeminiError::NoKey);
+                return;
+            }
+            Err(error) => {
+                self.message = tf("captions.geminiKeyNotSaved", &[&error]);
+                return;
+            }
+        };
+        let source = gemini_captions::Source {
+            path: media.path.clone(),
+            audio_stream: clip.audio_stream,
+            source_start: clip.source_start,
+            window: clip.duration * clip.speed,
+        };
+        let model = self.gemini.chosen_model();
+        let language = self.gemini.language_code();
+        let options = JobOptions::new(&model, language, gemini_captions::mode_for(&model));
+        let requests = job::estimate(source.window, &options).requests;
+        // A request takes a few seconds to a minute; the bar is told what
+        // window it is on, and is a guess in between.
+        self.pace = Pace::new(vec![
+            (Stage::Reading, 1.0),
+            (Stage::Working, requests as f32 * 20.0),
+        ]);
+        self.subject = Some(Subject {
+            start: clip.start,
+            speed: clip.speed,
+            look: self.look(),
+            model: model.clone(),
+            windows: requests as f32,
+        });
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.gemini.cancel = Some(Arc::clone(&cancel));
+        self.running = true;
+        self.message.clear();
+        let epoch = crate::host::project_epoch();
+        spawn_in_project(
+            move || {
+                gemini_captions::transcribe(&key, &model, language, &source, cancel, move |stage| {
+                    let stage = match stage {
+                        GeminiStage::Reading { .. } => JobStage::Reading,
+                        GeminiStage::Waiting { n, of } => JobStage::Working {
+                            done: (n - 1) as f32 / of as f32,
+                            next: n as f32 / of as f32,
+                        },
+                        GeminiStage::Finishing => JobStage::Working {
+                            done: 1.0,
+                            next: 1.0,
+                        },
+                    };
+                    on_ui_in_project(epoch, move |studio, _, _| {
+                        studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
+                    });
+                })
+            },
+            |studio, _, _, result| {
+                studio.handle(Msg::Captions(CaptionsMsg::Finished(
+                    result.map_err(|error| gemini_captions::say(&error)),
+                )));
+            },
+        );
     }
 
     /// The sheet's clip through the transcriber on a worker, reporting into
@@ -551,6 +769,16 @@ impl CaptionsPane {
             .subject_clip(studio, &sources)
             .and_then(|id| sources.iter().position(|source| source.id == id))
             .map_or(-1, |index| index as i32);
+        let notice = if self.open && self.from_voice && self.engine == 1 {
+            self.subject_clip(studio, &sources)
+                .and_then(|id| studio.clip(&id))
+                .map(|clip| {
+                    gemini_captions::notice(clip.duration * clip.speed, &self.gemini.chosen_model())
+                })
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
         let labels: Vec<slint::SharedString> = sources
             .into_iter()
             .map(|source| source.label.into())
@@ -575,8 +803,34 @@ impl CaptionsPane {
                 _ => t("captions.readingTheSound"),
             }
             .into(),
-            ready: !installed(&studio.settings.transcribers).is_empty(),
+            ready: if self.engine == 1 {
+                self.gemini.key_saved
+            } else {
+                !installed(&studio.settings.transcribers).is_empty()
+            },
             message: self.message.as_str().into(),
+            engine: self.engine as i32,
+            gemini_key: self.gemini.key_saved,
+            gemini_testing: self.gemini.testing,
+            gemini_status: self.gemini.status.as_str().into(),
+            gemini_models: std::rc::Rc::new(slint::VecModel::from(
+                self.gemini
+                    .model_names()
+                    .into_iter()
+                    .map(slint::SharedString::from)
+                    .collect::<Vec<_>>(),
+            ))
+            .into(),
+            gemini_model: self.gemini.model as i32,
+            gemini_languages: std::rc::Rc::new(slint::VecModel::from(
+                gemini_captions::LANGUAGES
+                    .iter()
+                    .map(|language| slint::SharedString::from(language.0))
+                    .collect::<Vec<_>>(),
+            ))
+            .into(),
+            gemini_language: self.gemini.language as i32,
+            gemini_notice: notice.into(),
         }
     }
 }

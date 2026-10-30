@@ -107,6 +107,14 @@ pub struct Preferences {
     /// kept from a title by the Text panel's "Use for new titles"; its
     /// words are empty. None starts titles in the bundled face.
     pub title_style: Option<concat_project::model::TextStyle>,
+    /// The captions sheet's engine: "gemini", or the local transcriber when
+    /// absent or anything else.
+    pub captions_engine: Option<String>,
+    /// The Gemini model chosen for captions. Not a secret; the API key is
+    /// never kept here (see secret.rs).
+    pub gemini_model: Option<String>,
+    /// The speech language sent to Gemini as a BCP-47 code; absent detects.
+    pub gemini_language: Option<String>,
     /// What the log records, by the name concat_host::logs reads: `info`
     /// unless the Settings sheet was asked for more or less. CONCAT_LOG in
     /// the environment overrides it for one run.

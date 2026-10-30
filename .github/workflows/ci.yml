@@ -157,7 +157,8 @@ jobs:
       # job at a time and no debug info, to stay inside the runner's
       # memory; the run below finds everything already built.
       - name: Build the tests
-        timeout-minutes: 25
+        # Fork only: a cold cache needs longer than the warm 25 minutes.
+        timeout-minutes: 75
         working-directory: src
         env:
           CARGO_PROFILE_DEV_DEBUG: "0"

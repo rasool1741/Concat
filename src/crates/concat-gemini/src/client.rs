@@ -106,6 +106,13 @@ impl Client {
         self
     }
 
+    /// Uses `flag` as the cancel flag, so the window can hold it before the
+    /// client exists (a worker builds the client).
+    pub fn with_cancel(mut self, flag: Arc<AtomicBool>) -> Client {
+        self.cancel = flag;
+        self
+    }
+
     /// The flag that stops a call in progress: set it from the window.
     pub fn cancel_handle(&self) -> Arc<AtomicBool> {
         self.cancel.clone()

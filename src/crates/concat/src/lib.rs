@@ -60,6 +60,7 @@ pub use platform::{LinkOpener, install_link_opener};
 pub use platform::{MicrophoneAccess, install_microphone_access};
 mod panes;
 mod prefs;
+mod secret;
 mod presets;
 mod source;
 mod studio;
@@ -2030,6 +2031,24 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     }));
     app.on_captions_size_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Captions(CaptionsMsg::SizeChanged(index)));
+    }));
+    app.on_captions_engine_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::EngineChanged(index)));
+    }));
+    app.on_captions_gemini_key_saved(on_window!(|state, key: SharedString| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiKeySaved(key.to_string())));
+    }));
+    app.on_captions_gemini_key_cleared(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiKeyCleared));
+    }));
+    app.on_captions_gemini_test(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiTest));
+    }));
+    app.on_captions_gemini_model_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiModelChanged(index)));
+    }));
+    app.on_captions_gemini_language_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiLanguageChanged(index)));
     }));
     app.on_captions_begin(on_window!(|state| {
         state.handle(Msg::Captions(CaptionsMsg::Begin));
