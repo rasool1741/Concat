@@ -287,7 +287,7 @@ impl Client {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::io::{Read, Write};
     use std::net::TcpListener;
@@ -295,12 +295,12 @@ mod tests {
 
     /// A one-thread HTTP server that answers each connection with the next
     /// canned reply and records what it was asked.
-    struct Mock {
-        base: String,
-        seen: Arc<Mutex<Vec<String>>>,
+    pub(crate) struct Mock {
+        pub(crate) base: String,
+        pub(crate) seen: Arc<Mutex<Vec<String>>>,
     }
 
-    fn mock(replies: Vec<(u16, &'static str, &'static str)>) -> Mock {
+    pub(crate) fn mock(replies: Vec<(u16, &'static str, &'static str)>) -> Mock {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let seen = Arc::new(Mutex::new(Vec::new()));

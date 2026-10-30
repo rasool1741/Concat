@@ -12,6 +12,7 @@
 //! - [`response`] reads a reply: text, word timings, and the cues a model
 //!   was asked to return.
 //! - [`cues`] groups words into cues and [`validate`] checks them.
+//! - [`job`] runs a whole transcription over those, given a way to read audio.
 //! - [`client`] is the blocking HTTP client, with the key kept out of every
 //!   error and every `Debug` print.
 //!
@@ -22,9 +23,11 @@ pub mod chunk;
 pub mod client;
 pub mod cues;
 pub mod error;
+pub mod job;
 pub mod request;
 pub mod response;
 pub mod validate;
+pub mod wav;
 
 pub use client::{ApiKey, Client, ModelInfo};
 pub use error::GeminiError;
