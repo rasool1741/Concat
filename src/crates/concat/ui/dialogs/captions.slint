@@ -4,7 +4,7 @@
 import { I18n } from "../i18n.slint";
 import { Theme } from "../theme/theme.slint";
 import { Glyph, Icon } from "../icons.slint";
-import { Button, CopyChip, DialogRow, DialogSection, Modal, Progress } from "../primitives/modal.slint";
+import { Button, CopyChip, DialogRow, DialogSection, Field, Modal, Progress } from "../primitives/modal.slint";
 import { SegmentedControl } from "../primitives/segmented-control.slint";
 import { Select } from "../primitives/select.slint";
 import { Switch } from "../inspector/controls.slint";
@@ -46,6 +46,23 @@ export struct CaptionsSheetData {
     /// 0 Small, 1 Medium, 2 Large
     size: int,
     running: bool,
+    /// 0 the local transcriber, 1 Gemini.
+    engine: int,
+    /// Gemini: a key is saved in the system's credential store.
+    gemini-key: bool,
+    /// Gemini: a connection test is running.
+    gemini-testing: bool,
+    /// Gemini: what the last save or test said.
+    gemini-status: string,
+    /// Gemini: the models the key can see.
+    gemini-models: [string],
+    gemini-model: int,
+    /// Gemini: the speech languages offered, by their own names.
+    gemini-languages: [string],
+    gemini-language: int,
+    /// Gemini: what sending the clip's sound will cost, in words; shown
+    /// before anything leaves the machine.
+    gemini-notice: string,
     /// 0..1: where the transcription surely is.
     progress: float,
     /// Where the step under way leaves the bar, 0..1.
@@ -74,6 +91,12 @@ export component CaptionsDialog inherits Modal {
     callback model-changed(index: int);
     callback placement-changed(index: int);
     callback size-changed(index: int);
+    callback engine-changed(index: int);
+    callback gemini-key-saved(key: string);
+    callback gemini-key-cleared();
+    callback gemini-test();
+    callback gemini-model-changed(index: int);
+    callback gemini-language-changed(index: int);
     callback begin();
     callback cancel();
     callback import-srt();
@@ -101,6 +124,10 @@ export component CaptionsDialog inherits Modal {
         }
     }
     init => { root.draft = root.data.text; }
+
+    // The key being typed, held up here and never sent anywhere until
+    // Save: it is cleared the moment it is handed over.
+    property <string> key-draft;
 
     VerticalLayout {
         if !root.data.running && !root.from-voice: DialogSection {
@@ -184,6 +211,19 @@ export component CaptionsDialog inherits Modal {
 
         if !root.data.running && root.from-voice: DialogSection {
             first: true;
+            title: I18n.t("captions.engine");
+
+            DialogRow {
+                label: I18n.t("captions.engine");
+                SegmentedControl {
+                    options: [I18n.t("captions.engineLocal"), "Gemini"];
+                    current: root.data.engine;
+                    changed(index) => { root.engine-changed(index); }
+                }
+            }
+        }
+
+        if !root.data.running && root.from-voice && root.data.engine == 0: DialogSection {
             title: I18n.t("common.transcriber");
 
             DialogRow {
@@ -211,6 +251,92 @@ export component CaptionsDialog inherits Modal {
             if !root.data.ready: Text {
                 text: I18n.t("captions.downloadTranscriberModelFirst");
                 color: Theme.fg-muted;
+                font-size: Theme.fs-sm;
+                wrap: word-wrap;
+            }
+        }
+
+        if !root.data.running && root.from-voice && root.data.engine == 1: DialogSection {
+            title: "Gemini";
+
+            DialogRow {
+                label: I18n.t("common.audio");
+                Select {
+                    options: root.data.sources;
+                    current: root.data.source;
+                    placeholder: I18n.t("captions.noVoiceOnTimeline");
+                    enabled: root.data.sources.length > 0;
+                    changed(index) => { root.source-changed(index); }
+                }
+            }
+
+            DialogRow {
+                label: I18n.t("captions.apiKey");
+                HorizontalLayout {
+                    spacing: 6px;
+                    Field {
+                        value: root.key-draft;
+                        secret: true;
+                        technical: true;
+                        placeholder: root.data.gemini-key ? I18n.t("captions.geminiKeyIsSaved") : I18n.t("captions.pasteApiKey");
+                        edited(text) => { root.key-draft = text; }
+                    }
+                    Button {
+                        label: I18n.t("captions.saveKey");
+                        enabled: root.key-draft != "";
+                        clicked => {
+                            root.gemini-key-saved(root.key-draft);
+                            root.key-draft = "";
+                        }
+                    }
+                }
+            }
+
+            DialogRow {
+                label: I18n.t("common.model");
+                Select {
+                    options: root.data.gemini-models;
+                    current: root.data.gemini-model;
+                    enabled: root.data.gemini-models.length > 0;
+                    changed(index) => { root.gemini-model-changed(index); }
+                }
+            }
+
+            DialogRow {
+                label: I18n.t("captions.speechLanguage");
+                Select {
+                    options: root.data.gemini-languages;
+                    current: root.data.gemini-language;
+                    changed(index) => { root.gemini-language-changed(index); }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 8px;
+                Button {
+                    label: root.data.gemini-testing ? I18n.t("captions.testing") : I18n.t("captions.testConnection");
+                    ghost: true;
+                    enabled: root.data.gemini-key && !root.data.gemini-testing;
+                    clicked => { root.gemini-test(); }
+                }
+                if root.data.gemini-key: Button {
+                    label: I18n.t("captions.removeKey");
+                    ghost: true;
+                    clicked => { root.gemini-key-cleared(); }
+                }
+            }
+
+            if root.data.gemini-status != "": Text {
+                text: root.data.gemini-status;
+                color: Theme.fg-muted;
+                font-size: Theme.fs-sm;
+                wrap: word-wrap;
+            }
+
+            // Said before the first byte leaves the machine.
+            Text {
+                text: root.data.gemini-notice;
+                color: Theme.fg-dim;
                 font-size: Theme.fs-sm;
                 wrap: word-wrap;
             }
