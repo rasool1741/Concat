@@ -19,21 +19,21 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use concat_gemini::job::{self, JobOptions, Stage as GeminiStage};
+use concat_gemini::{ApiKey, Client as GeminiClient, GeminiError};
 use concat_project::Command;
 use concat_project::model::{ClipKind, TextStyle};
 use concat_project::srt;
 use concat_speech::JobStage;
 use concat_speech::transcribe::Segment;
-use concat_gemini::job::{self, JobOptions, Stage as GeminiStage};
-use concat_gemini::{ApiKey, Client as GeminiClient, GeminiError};
 
 use crate::host::{on_ui_in_project, spawn_in_project};
 use crate::i18n::{t, tf};
 use crate::panes::Msg;
 use crate::panes::gemini_captions::{self, GeminiState};
 use crate::panes::pace::{Pace, Stage, Timings};
-use crate::secret::{KeyStore, OsKeyStore};
 use crate::panes::settings::installed;
+use crate::secret::{KeyStore, OsKeyStore};
 use crate::studio::Studio;
 use crate::ui::CaptionsSheetData;
 
@@ -193,8 +193,7 @@ impl CaptionsPane {
             CaptionsMsg::EngineChanged(index) => {
                 self.engine = (index.max(0) as usize).min(1);
                 self.message.clear();
-                studio.prefs.captions_engine =
-                    (self.engine == 1).then(|| "gemini".to_owned());
+                studio.prefs.captions_engine = (self.engine == 1).then(|| "gemini".to_owned());
                 studio.prefs.save(&studio.host.dirs);
                 self.refresh_key();
             }
@@ -253,8 +252,7 @@ impl CaptionsPane {
             }
             CaptionsMsg::GeminiLanguageChanged(index) => {
                 self.gemini.language = index.max(0) as usize;
-                studio.prefs.gemini_language =
-                    self.gemini.language_code().map(str::to_owned);
+                studio.prefs.gemini_language = self.gemini.language_code().map(str::to_owned);
                 studio.prefs.save(&studio.host.dirs);
             }
             CaptionsMsg::PlacementChanged(index) => {

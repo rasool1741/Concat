@@ -278,7 +278,11 @@ mod tests {
         let segments = segments_of(&[cue]);
         assert_eq!(segments.len(), 1);
         assert_eq!(
-            (segments[0].start, segments[0].end, segments[0].text.as_str()),
+            (
+                segments[0].start,
+                segments[0].end,
+                segments[0].text.as_str()
+            ),
             (1.5, 3.0, "سلام\nدنیا")
         );
     }
