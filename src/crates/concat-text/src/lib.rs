@@ -2244,6 +2244,82 @@ mod tests {
         assert_eq!(quoted, bundled);
     }
 
+    /// The painted width of `words` in the bundled faces alone, so the
+    /// result does not depend on what the machine has installed.
+    fn persian_width(words: &str) -> u32 {
+        let fonts = Fonts::with_system(false);
+        render(&fonts, &style(words), 1920, 1080)
+            .expect("renders")
+            .block_width
+    }
+
+    /// Persian letters join: three of the same letter, joined, are far
+    /// narrower than three of its separate forms side by side. A shaper
+    /// that did not join would draw each one apart at its isolated width.
+    #[test]
+    fn persian_letters_are_joined_not_set_apart() {
+        let one = persian_width("ب");
+        let joined = persian_width("ببب");
+        assert!(one > 0);
+        assert!(
+            joined < one * 3 * 3 / 4,
+            "joined {joined}px should be well under three separate letters ({} px)",
+            one * 3
+        );
+    }
+
+    /// The half-space (ZWNJ) stops two letters joining: the same letters
+    /// with it are set differently from the same letters without it, and
+    /// it draws nothing of its own.
+    #[test]
+    fn the_half_space_breaks_a_join_and_draws_nothing() {
+        let with = persian_width("می\u{200c}روم");
+        let without = persian_width("میروم");
+        assert_ne!(with, without, "the half-space must change the shaping");
+        let space = persian_width("می روم");
+        assert!(with < space, "a half-space is narrower than a space");
+    }
+
+    /// Persian and English in one line keep both: the block is at least as
+    /// wide as either on its own.
+    #[test]
+    fn persian_and_english_share_a_line() {
+        let mixed = persian_width("سلام Concat");
+        assert!(mixed >= persian_width("سلام"));
+        assert!(mixed >= persian_width("Concat"));
+    }
+
+    /// Persian digits and the Persian question mark and comma are drawn,
+    /// not left as boxes: a line of only them has paint.
+    #[test]
+    fn persian_digits_and_punctuation_paint() {
+        let fonts = Fonts::with_system(false);
+        let out = render(&fonts, &style("۱۲۳۴۵۶۷۸۹۰ ؟ ، ؛"), 1920, 1080).expect("renders");
+        assert!(opaque_pixels(&out.png) > 200);
+    }
+
+    /// A caption of two lines is taller than one of a line, and a line
+    /// break is honoured in Persian as in anything else.
+    #[test]
+    fn a_two_line_persian_caption_is_taller_than_one_line() {
+        let fonts = Fonts::with_system(false);
+        let one = render(&fonts, &style("سلام دنیا"), 1920, 1080).expect("renders");
+        let two = render(&fonts, &style("سلام\nدنیا"), 1920, 1080).expect("renders");
+        assert!(two.block_height > one.block_height);
+    }
+
+    /// The same Persian caption is identical on two renders: the preview
+    /// and the export use this one painter, so one stable picture is what
+    /// keeps them the same.
+    #[test]
+    fn a_persian_caption_renders_the_same_twice() {
+        let fonts = Fonts::with_system(false);
+        let a = render_frame(&fonts, &style("زیرنویس فارسی"), 1280, 720).expect("renders");
+        let b = render_frame(&fonts, &style("زیرنویس فارسی"), 1280, 720).expect("renders");
+        assert_eq!(a.rgba, b.rgba);
+        assert!(a.rgba.chunks(4).filter(|p| p[3] > 0).count() > 200);
+    }
+
     /// A missing family falls back to a system face and still paints words.
     #[test]
     fn a_title_paints_something_with_a_fallback_face() {

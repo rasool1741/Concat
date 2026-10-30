@@ -1,0 +1,14 @@
+id = "concat.fa-minimal"
+name = "ساده و مینیمال"
+language = "Persian"
+order = 40
+offsetY = 0.34
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 500
+fontSize = 0.05
+color = "#ffffff"
+shadow = true
+lineHeight = 1.35

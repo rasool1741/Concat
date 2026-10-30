@@ -1,0 +1,17 @@
+id = "concat.fa-dark-box"
+name = "کادر تیره با گوشه گرد"
+language = "Persian"
+order = 46
+offsetY = 0.34
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 500
+fontSize = 0.05
+color = "#ffffff"
+background = "#000000b3"
+backgroundRadius = 0.02
+shadow = false
+lineHeight = 1.4
+maxWidth = 0.8

@@ -367,6 +367,30 @@ mod tests {
         assert_eq!(builtin().len(), embedded::BUILTIN.len());
     }
 
+    /// The Persian presets are for Persian: each says so, each sample is
+    /// Arabic-script, and each names a face that has those letters.
+    #[test]
+    fn the_persian_presets_are_for_persian_text() {
+        let persian: Vec<_> = builtin()
+            .into_iter()
+            .filter(|preset| preset.language == "Persian")
+            .collect();
+        assert_eq!(persian.len(), 9, "the nine looks the subtitle tool offers");
+        for preset in persian {
+            assert!(
+                preset
+                    .style
+                    .content
+                    .chars()
+                    .any(|c| ('\u{0600}'..='\u{06FF}').contains(&c)),
+                "{} has no Persian sample",
+                preset.id
+            );
+            assert_eq!(preset.style.font_family, "Noto Sans Arabic UI");
+            assert!(preset.id.starts_with("concat.fa-"));
+        }
+    }
+
     #[test]
     fn a_partial_style_lays_over_the_default() {
         let file: PresetFile = toml::from_str(

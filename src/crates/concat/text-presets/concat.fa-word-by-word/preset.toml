@@ -1,0 +1,15 @@
+id = "concat.fa-word-by-word"
+name = "کلمه‌به‌کلمه"
+language = "Persian"
+order = 44
+offsetY = 0.0
+
+[style]
+content = "سلام"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 700
+fontSize = 0.14
+color = "#ffffff"
+strokeWidth = 0.008
+strokeColor = "#000000"
+shadow = true

@@ -1,0 +1,16 @@
+id = "concat.fa-classic"
+name = "فارسی کلاسیک"
+language = "Persian"
+order = 41
+offsetY = 0.35
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 700
+fontSize = 0.06
+color = "#ffffff"
+strokeWidth = 0.004
+strokeColor = "#000000"
+shadow = true
+lineHeight = 1.4

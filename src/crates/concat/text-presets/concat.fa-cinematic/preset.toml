@@ -1,0 +1,16 @@
+id = "concat.fa-cinematic"
+name = "سینمایی"
+language = "Persian"
+order = 42
+offsetY = 0.38
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 400
+fontSize = 0.045
+color = "#f4efe6"
+tracking = 0.001
+shadow = true
+lineHeight = 1.5
+maxWidth = 0.7

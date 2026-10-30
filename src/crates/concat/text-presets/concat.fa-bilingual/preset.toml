@@ -1,0 +1,16 @@
+id = "concat.fa-bilingual"
+name = "دو زبانه"
+language = "Persian"
+order = 48
+offsetY = 0.33
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید\nHello, welcome to the subtitles"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 600
+fontSize = 0.045
+color = "#ffffff"
+strokeWidth = 0.003
+strokeColor = "#000000"
+shadow = true
+lineHeight = 1.45
