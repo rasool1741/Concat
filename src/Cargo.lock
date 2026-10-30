@@ -1241,6 +1241,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "concat-gemini"
+version = "0.2.8"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "ureq 2.12.1",
+]
+
+[[package]]
 name = "concat-host"
 version = "0.2.8"
 dependencies = [

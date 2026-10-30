@@ -1,0 +1,20 @@
+[package]
+name = "concat-gemini"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Gemini API client for subtitles: transcription, translation and correction, with chunking, validation and no secrets in errors."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json.workspace = true
+thiserror.workspace = true
+# Audio rides in the request body as base64.
+base64 = "0.22"
+# The same blocking HTTP client the host and the speech crate already use.
+ureq = "2"
+
+[lints]
+workspace = true
