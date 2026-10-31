@@ -50,6 +50,9 @@ name: Fork build (Android)
 # name the release does not pick up.
 on:
   workflow_dispatch:
+  push:
+    branches: [gemini-subtitle-studio]
+    paths: ['.github/workflows/fork-build-android.yml']
 
 concurrency:
   group: mobile-${{ github.workflow }}-${{ github.ref }}

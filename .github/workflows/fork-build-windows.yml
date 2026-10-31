@@ -44,6 +44,9 @@ name: Fork build (Windows)
 # `fail-fast` is off for the same reason.
 on:
   workflow_dispatch:
+  push:
+    branches: [gemini-subtitle-studio]
+    paths: ['.github/workflows/fork-build-windows.yml']
 
 env:
   CARGO_TERM_COLOR: always
