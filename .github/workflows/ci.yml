@@ -148,9 +148,21 @@ jobs:
       # public item without documentation fails here, not in review. Lints
       # before tests: they finish in a fraction of the time and catch the
       # most.
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Lint the workspace
         timeout-minutes: 25
         working-directory: src
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --message-format=short -- -D warnings 2>&1 | tee /tmp/clippy.txt
+      # Fork only: the job's log cannot be downloaded from where the work
+      # is watched, so the errors are also raised as an annotation.
+      - name: Report lint errors
+        if: failure()
+        shell: bash
+        run: |
+          body=$(grep -E "error|warning: unused|-->" /tmp/clippy.txt | head -60 | cut -c1-300 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=clippy::${body}"
 
       # The tests are compiled in a step of their own, so a slow compile
       # and a slow test are told apart by which step ran out of time. One

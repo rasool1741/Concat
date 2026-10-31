@@ -24,6 +24,7 @@ pub mod client;
 pub mod cues;
 pub mod error;
 pub mod job;
+pub mod lines;
 pub mod request;
 pub mod response;
 pub mod validate;
