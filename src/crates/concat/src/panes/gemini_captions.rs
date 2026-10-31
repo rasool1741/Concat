@@ -16,6 +16,7 @@ use std::sync::atomic::AtomicBool;
 use concat_gemini::job::{self, JobOptions, Mode, Stage};
 use concat_gemini::{ApiKey, Client, Cue, GeminiError};
 use concat_media::{AudioDecoder, AudioOptions, SampleFormat};
+use concat_project::caption_fx::{self, Reveal, TimedWord};
 use concat_speech::transcribe::Segment;
 
 use crate::i18n::{t, tf};
@@ -37,6 +38,15 @@ pub const LANGUAGES: [(&str, Option<&str>); 8] = [
     ("Deutsch", Some("de-DE")),
 ];
 
+/// How a caption appears, by the sheet's row: the whole line, building up
+/// word by word, one word at a time, or typed letter by letter.
+pub const REVEALS: [Reveal; 4] = [
+    Reveal::Whole,
+    Reveal::Build,
+    Reveal::WordByWord,
+    Reveal::Typewriter { per_second: 14.0 },
+];
+
 /// What the Gemini half of the sheet remembers while the window is open.
 #[derive(Default)]
 pub struct GeminiState {
@@ -52,6 +62,8 @@ pub struct GeminiState {
     pub model: usize,
     /// Row in [`LANGUAGES`].
     pub language: usize,
+    /// Row in [`REVEALS`].
+    pub reveal: usize,
     /// Set to stop the run in progress.
     pub cancel: Option<Arc<AtomicBool>>,
 }
@@ -136,15 +148,27 @@ pub fn mode_for(model: &str) -> Mode {
     }
 }
 
-/// Cues as the segments the sheet already knows how to place.
-pub fn segments_of(cues: &[Cue]) -> Vec<Segment> {
-    cues.iter()
-        .map(|cue| Segment {
-            start: cue.start,
-            end: cue.end,
-            text: cue.text.clone(),
-        })
-        .collect()
+/// Cues as the segments the sheet already knows how to place. With a
+/// reveal other than the whole line, each cue is cut into the pieces
+/// [`caption_fx::plan_reveal`] makes - from the words' own timings, never
+/// from guessed ones - and each piece is a segment.
+pub fn segments_of(cues: &[Cue], reveal: Reveal) -> Vec<Segment> {
+    let mut out = Vec::with_capacity(cues.len());
+    for cue in cues {
+        let words: Vec<TimedWord> = cue
+            .words
+            .iter()
+            .map(|word| (word.text.clone(), word.start, word.end))
+            .collect();
+        for piece in caption_fx::plan_reveal(cue.start, cue.end, &cue.text, &words, reveal) {
+            out.push(Segment {
+                start: piece.start,
+                end: piece.start + piece.duration,
+                text: piece.content,
+            });
+        }
+    }
+    out
 }
 
 /// What a run will send, as words for the sheet: how many requests and how
@@ -176,6 +200,7 @@ pub fn transcribe(
     model: &str,
     language: Option<&str>,
     source: &Source,
+    reveal: Reveal,
     cancel: Arc<AtomicBool>,
     mut progress: impl FnMut(Stage),
 ) -> Result<Vec<Segment>, GeminiError> {
@@ -198,7 +223,7 @@ pub fn transcribe(
         decoder.collect_f32().map_err(|error| error.to_string())
     };
     let output = job::run(&client, &options, source.window, &mut read, &mut progress)?;
-    Ok(segments_of(&output.cues))
+    Ok(segments_of(&output.cues, reveal))
 }
 
 /// An error as the sheet says it, in the interface's language. The words
@@ -275,7 +300,7 @@ mod tests {
                 end: 2.0,
             }],
         };
-        let segments = segments_of(&[cue]);
+        let segments = segments_of(&[cue], Reveal::Whole);
         assert_eq!(segments.len(), 1);
         assert_eq!(
             (

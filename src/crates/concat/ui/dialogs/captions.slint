@@ -60,6 +60,12 @@ export struct CaptionsSheetData {
     /// Gemini: the speech languages offered, by their own names.
     gemini-languages: [string],
     gemini-language: int,
+    /// Gemini: how the captions appear, by name, and the row chosen.
+    gemini-reveals: [string],
+    gemini-reveal: int,
+    /// The motions the captions lane can be given, by name, and the row.
+    motions: [string],
+    motion: int,
     /// Gemini: what sending the clip's sound will cost, in words; shown
     /// before anything leaves the machine.
     gemini-notice: string,
@@ -97,6 +103,9 @@ export component CaptionsDialog inherits Modal {
     callback gemini-test();
     callback gemini-model-changed(index: int);
     callback gemini-language-changed(index: int);
+    callback gemini-reveal-changed(index: int);
+    callback motion-changed(index: int);
+    callback apply-motion();
     callback begin();
     callback cancel();
     callback import-srt();
@@ -312,6 +321,15 @@ export component CaptionsDialog inherits Modal {
                 }
             }
 
+            DialogRow {
+                label: I18n.t("captions.reveal");
+                Select {
+                    options: root.data.gemini-reveals;
+                    current: root.data.gemini-reveal;
+                    changed(index) => { root.gemini-reveal-changed(index); }
+                }
+            }
+
             HorizontalLayout {
                 spacing: 8px;
                 Button {
@@ -361,6 +379,23 @@ export component CaptionsDialog inherits Modal {
                     options: [I18n.t("common.small"), I18n.t("common.medium"), I18n.t("common.large")];
                     current: root.data.size;
                     changed(index) => { root.size-changed(index); }
+                }
+            }
+
+            DialogRow {
+                label: I18n.t("captions.motion");
+                HorizontalLayout {
+                    spacing: 6px;
+                    Select {
+                        options: root.data.motions;
+                        current: root.data.motion;
+                        changed(index) => { root.motion-changed(index); }
+                    }
+                    Button {
+                        label: I18n.t("captions.applyMotion");
+                        ghost: true;
+                        clicked => { root.apply-motion(); }
+                    }
                 }
             }
 

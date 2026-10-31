@@ -2050,6 +2050,15 @@ fn start(project: Option<std::path::PathBuf>, smoke: bool) -> Result<(), slint::
     app.on_captions_gemini_language_changed(on_window!(|state, index: i32| {
         state.handle(Msg::Captions(CaptionsMsg::GeminiLanguageChanged(index)));
     }));
+    app.on_captions_gemini_reveal_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::GeminiRevealChanged(index)));
+    }));
+    app.on_captions_motion_changed(on_window!(|state, index: i32| {
+        state.handle(Msg::Captions(CaptionsMsg::MotionChanged(index)));
+    }));
+    app.on_captions_apply_motion(on_window!(|state| {
+        state.handle(Msg::Captions(CaptionsMsg::ApplyMotion));
+    }));
     app.on_captions_begin(on_window!(|state| {
         state.handle(Msg::Captions(CaptionsMsg::Begin));
     }));

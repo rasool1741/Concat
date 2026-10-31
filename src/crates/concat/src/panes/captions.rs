@@ -22,6 +22,7 @@ use std::sync::Arc;
 use concat_gemini::job::{self, JobOptions, Stage as GeminiStage};
 use concat_gemini::{ApiKey, Client as GeminiClient, GeminiError};
 use concat_project::Command;
+use concat_project::caption_fx::{self, Direction, Effect};
 use concat_project::model::{ClipKind, TextStyle};
 use concat_project::srt;
 use concat_speech::JobStage;
@@ -42,6 +43,9 @@ use crate::ui::CaptionsSheetData;
 const CAPTION_OFFSETS: [f64; 3] = [0.35, 0.0, -0.35];
 /// A caption's cap height by the sheet's row, as a fraction of the frame.
 const CAPTION_SIZES: [f64; 3] = [0.04, 0.05, 0.065];
+/// How many motions the sheet lists: none, fade, pop, slide, scale.
+const MOTIONS: usize = 5;
+
 /// A rough speaking rate, for a script's timing and the speech sheet's
 /// estimate.
 pub const CHARS_PER_SECOND: f32 = 14.0;
@@ -73,6 +77,12 @@ pub enum CaptionsMsg {
     GeminiTested(Result<Vec<String>, GeminiError>),
     GeminiModelChanged(i32),
     GeminiLanguageChanged(i32),
+    /// How the captions appear: the whole line, building, word by word, typed.
+    GeminiRevealChanged(i32),
+    /// The motion row of the sheet.
+    MotionChanged(i32),
+    /// Give the captions lane that motion.
+    ApplyMotion,
     PlacementChanged(i32),
     SizeChanged(i32),
     /// Run the pass the sheet describes.
@@ -143,6 +153,8 @@ pub struct CaptionsPane {
     pub placement: usize,
     /// 0 small, 1 medium, 2 large.
     pub size: usize,
+    /// Row of the motion list: none, fade, pop, slide, scale.
+    pub motion: usize,
     pub running: bool,
     /// How far the running transcription looks.
     pub pace: Pace,
@@ -259,6 +271,14 @@ impl CaptionsPane {
                 studio.prefs.gemini_language = self.gemini.language_code().map(str::to_owned);
                 studio.prefs.save(&studio.host.dirs);
             }
+            CaptionsMsg::GeminiRevealChanged(index) => {
+                self.gemini.reveal =
+                    (index.max(0) as usize).min(gemini_captions::REVEALS.len() - 1);
+            }
+            CaptionsMsg::MotionChanged(index) => {
+                self.motion = (index.max(0) as usize).min(MOTIONS - 1);
+            }
+            CaptionsMsg::ApplyMotion => self.apply_motion(studio),
             CaptionsMsg::PlacementChanged(index) => {
                 self.placement = (index.max(0) as usize).min(2);
             }
@@ -564,6 +584,49 @@ impl CaptionsPane {
         }
     }
 
+    /// Gives every caption on the lane the sheet's motion: the selected
+    /// title's lane, or the busiest. Keys on the clips' own opacity, scale
+    /// and offset, one undo step, editable afterwards on the timeline.
+    fn apply_motion(&mut self, studio: &mut Studio) {
+        let Some(lane) = export_lane(studio) else {
+            self.message = t("captions.noCaptionsToExport");
+            return;
+        };
+        let effect = match self.motion {
+            1 => Effect::Fade {
+                fade_in: 0.25,
+                fade_out: 0.25,
+            },
+            2 => Effect::Pop {
+                seconds: 0.35,
+                overshoot: 0.1,
+            },
+            3 => Effect::Slide {
+                seconds: 0.35,
+                from: Direction::Down,
+                distance: 0.06,
+            },
+            4 => Effect::Scale {
+                seconds: 0.3,
+                from: 0.7,
+            },
+            _ => Effect::None,
+        };
+        let mut commands: Vec<Command> = Vec::new();
+        let mut count = 0;
+        for clip in studio.timeline().clips.iter() {
+            if clip.kind == ClipKind::Text && clip.track_id == lane.track_id {
+                commands.extend(caption_fx::commands(clip, &effect));
+                count += 1;
+            }
+        }
+        if commands.is_empty() {
+            return;
+        }
+        studio.apply(Command::Batch { commands });
+        studio.notify(&tf("captions.motionApplied", &[&count]), false);
+    }
+
     /// The sheet opened afresh. `clip` is the clip it was opened on, if
     /// any: the switch starts on when that clip has sound, or when a clip's
     /// menu asked for its voice (`voice`), in which case a clip without
@@ -718,6 +781,8 @@ impl CaptionsPane {
         };
         let model = self.gemini.chosen_model();
         let language = self.gemini.language_code();
+        let reveal =
+            gemini_captions::REVEALS[self.gemini.reveal.min(gemini_captions::REVEALS.len() - 1)];
         let options = JobOptions::new(&model, language, gemini_captions::mode_for(&model));
         let requests = job::estimate(source.window, &options).requests;
         // A request takes a few seconds to a minute; the bar is told what
@@ -740,22 +805,30 @@ impl CaptionsPane {
         let epoch = crate::host::project_epoch();
         spawn_in_project(
             move || {
-                gemini_captions::transcribe(&key, &model, language, &source, cancel, move |stage| {
-                    let stage = match stage {
-                        GeminiStage::Reading { .. } => JobStage::Reading,
-                        GeminiStage::Waiting { n, of } => JobStage::Working {
-                            done: (n - 1) as f32 / of as f32,
-                            next: n as f32 / of as f32,
-                        },
-                        GeminiStage::Finishing => JobStage::Working {
-                            done: 1.0,
-                            next: 1.0,
-                        },
-                    };
-                    on_ui_in_project(epoch, move |studio, _, _| {
-                        studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
-                    });
-                })
+                gemini_captions::transcribe(
+                    &key,
+                    &model,
+                    language,
+                    &source,
+                    reveal,
+                    cancel,
+                    move |stage| {
+                        let stage = match stage {
+                            GeminiStage::Reading { .. } => JobStage::Reading,
+                            GeminiStage::Waiting { n, of } => JobStage::Working {
+                                done: (n - 1) as f32 / of as f32,
+                                next: n as f32 / of as f32,
+                            },
+                            GeminiStage::Finishing => JobStage::Working {
+                                done: 1.0,
+                                next: 1.0,
+                            },
+                        };
+                        on_ui_in_project(epoch, move |studio, _, _| {
+                            studio.handle(Msg::Captions(CaptionsMsg::Progress(stage)));
+                        });
+                    },
+                )
             },
             |studio, _, _, result| {
                 studio.handle(Msg::Captions(CaptionsMsg::Finished(
@@ -912,6 +985,23 @@ impl CaptionsPane {
             .into(),
             gemini_language: self.gemini.language as i32,
             gemini_notice: notice.into(),
+            gemini_reveal: self.gemini.reveal as i32,
+            gemini_reveals: std::rc::Rc::new(slint::VecModel::from(vec![
+                slint::SharedString::from(t("captions.revealWhole")),
+                slint::SharedString::from(t("captions.revealBuild")),
+                slint::SharedString::from(t("captions.revealWordByWord")),
+                slint::SharedString::from(t("captions.revealTypewriter")),
+            ]))
+            .into(),
+            motion: self.motion as i32,
+            motions: std::rc::Rc::new(slint::VecModel::from(vec![
+                slint::SharedString::from(t("captions.motionNone")),
+                slint::SharedString::from(t("captions.motionFade")),
+                slint::SharedString::from(t("captions.motionPop")),
+                slint::SharedString::from(t("captions.motionSlide")),
+                slint::SharedString::from(t("captions.motionScale")),
+            ]))
+            .into(),
         }
     }
 }

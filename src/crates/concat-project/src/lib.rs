@@ -22,6 +22,7 @@
 //! more than the adjacency.
 
 pub mod ass;
+pub mod caption_fx;
 pub mod commands;
 pub mod doc;
 pub mod editor;
