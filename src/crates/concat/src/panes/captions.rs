@@ -243,7 +243,7 @@ impl CaptionsPane {
                 match result {
                     Ok(ids) => {
                         let wanted = self.gemini.chosen_model();
-                        let seen = ids.iter().any(|id| *id == wanted);
+                        let seen = ids.contains(&wanted);
                         self.gemini.set_models(ids);
                         self.message = if seen {
                             String::new()
