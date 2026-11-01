@@ -1,0 +1,17 @@
+id = "concat.fa-cartoon"
+name = "کارتونی"
+language = "Persian"
+order = 202
+offsetY = 0.2
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 900
+fontSize = 0.09
+color = "#ff8a3d"
+strokeWidth = 0.014
+strokeColor = "#ffffff"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

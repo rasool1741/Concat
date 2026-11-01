@@ -376,7 +376,7 @@ mod tests {
             .filter(|preset| preset.language == "Persian")
             .collect();
         assert!(
-            persian.len() >= 46,
+            persian.len() >= 63,
             "the nine first looks and the trend looks after them"
         );
         for preset in persian {

@@ -1,0 +1,17 @@
+id = "concat.fa-zoo"
+name = "شاد"
+language = "Persian"
+order = 207
+offsetY = 0.2
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 800
+fontSize = 0.085
+color = "#ffd23f"
+strokeWidth = 0.008
+strokeColor = "#1a1a1a"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

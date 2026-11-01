@@ -1,0 +1,16 @@
+id = "concat.fa-lower-lime"
+name = "پایین‌صفحه لیمویی"
+language = "Persian"
+order = 214
+offsetY = 0.32
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 700
+fontSize = 0.045
+color = "#10160a"
+background = "#c6f432"
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.86
