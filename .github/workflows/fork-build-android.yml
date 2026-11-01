@@ -244,3 +244,4 @@ jobs:
   # ships ran there only through ARM translation, where ONNX Runtime's CPU
   # detection crashed before any of the app's code, so it was never
   # tested at all.
+# rebuilt for the phone key store
