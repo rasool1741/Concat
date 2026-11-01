@@ -66,6 +66,9 @@ export struct CaptionsSheetData {
     /// The motions the captions lane can be given, by name, and the row.
     motions: [string],
     motion: int,
+    /// The video effects the captions lane can be given, by name, and the row.
+    looks: [string],
+    look: int,
     /// Gemini: what sending the clip's sound will cost, in words; shown
     /// before anything leaves the machine.
     gemini-notice: string,
@@ -106,6 +109,8 @@ export component CaptionsDialog inherits Modal {
     callback gemini-reveal-changed(index: int);
     callback motion-changed(index: int);
     callback apply-motion();
+    callback look-changed(index: int);
+    callback apply-look();
     callback begin();
     callback cancel();
     callback import-srt();
@@ -395,6 +400,23 @@ export component CaptionsDialog inherits Modal {
                         label: I18n.t("captions.applyMotion");
                         ghost: true;
                         clicked => { root.apply-motion(); }
+                    }
+                }
+            }
+
+            DialogRow {
+                label: I18n.t("captions.look");
+                HorizontalLayout {
+                    spacing: 6px;
+                    Select {
+                        options: root.data.looks;
+                        current: root.data.look;
+                        changed(index) => { root.look-changed(index); }
+                    }
+                    Button {
+                        label: I18n.t("captions.applyLook");
+                        ghost: true;
+                        clicked => { root.apply-look(); }
                     }
                 }
             }

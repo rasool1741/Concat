@@ -45,6 +45,8 @@ const CAPTION_OFFSETS: [f64; 3] = [0.35, 0.0, -0.35];
 const CAPTION_SIZES: [f64; 3] = [0.04, 0.05, 0.065];
 /// How many motions the sheet lists: none, fade, pop, slide, scale.
 const MOTIONS: usize = 5;
+/// How many looks the sheet lists: none, then `caption_fx::LOOK_IDS`.
+const LOOKS: usize = 1 + caption_fx::LOOK_IDS.len();
 
 /// A rough speaking rate, for a script's timing and the speech sheet's
 /// estimate.
@@ -83,6 +85,10 @@ pub enum CaptionsMsg {
     MotionChanged(i32),
     /// Give the captions lane that motion.
     ApplyMotion,
+    /// The look row of the sheet.
+    LookChanged(i32),
+    /// Give the captions lane that video effect.
+    ApplyLook,
     PlacementChanged(i32),
     SizeChanged(i32),
     /// Run the pass the sheet describes.
@@ -155,6 +161,8 @@ pub struct CaptionsPane {
     pub size: usize,
     /// Row of the motion list: none, fade, pop, slide, scale.
     pub motion: usize,
+    /// Row of the look list: none, then the video effects of `LOOK_IDS`.
+    pub look: usize,
     pub running: bool,
     /// How far the running transcription looks.
     pub pace: Pace,
@@ -279,6 +287,10 @@ impl CaptionsPane {
                 self.motion = (index.max(0) as usize).min(MOTIONS - 1);
             }
             CaptionsMsg::ApplyMotion => self.apply_motion(studio),
+            CaptionsMsg::LookChanged(index) => {
+                self.look = (index.max(0) as usize).min(LOOKS - 1);
+            }
+            CaptionsMsg::ApplyLook => self.apply_look(studio),
             CaptionsMsg::PlacementChanged(index) => {
                 self.placement = (index.max(0) as usize).min(2);
             }
@@ -625,6 +637,32 @@ impl CaptionsPane {
         }
         studio.apply(Command::Batch { commands });
         studio.notify(&tf("captions.motionApplied", &[&count]), false);
+    }
+
+    /// Gives every caption on the lane the sheet's video effect, in place
+    /// of any other of the sheet's own; effects added by hand stay.
+    fn apply_look(&mut self, studio: &mut Studio) {
+        let Some(lane) = export_lane(studio) else {
+            self.message = t("captions.noCaptionsToExport");
+            return;
+        };
+        let look = self
+            .look
+            .checked_sub(1)
+            .and_then(|index| caption_fx::LOOK_IDS.get(index))
+            .copied();
+        let mut commands: Vec<Command> = Vec::new();
+        for clip in studio.timeline().clips.iter() {
+            if clip.kind == ClipKind::Text && clip.track_id == lane.track_id {
+                commands.push(caption_fx::look_command(clip, look));
+            }
+        }
+        if commands.is_empty() {
+            return;
+        }
+        let count = commands.len();
+        studio.apply(Command::Batch { commands });
+        studio.notify(&tf("captions.lookApplied", &[&count]), false);
     }
 
     /// The sheet opened afresh. `clip` is the clip it was opened on, if
@@ -994,6 +1032,17 @@ impl CaptionsPane {
             ]))
             .into(),
             motion: self.motion as i32,
+            look: self.look as i32,
+            looks: std::rc::Rc::new(slint::VecModel::from(vec![
+                slint::SharedString::from(t("captions.lookNone")),
+                slint::SharedString::from(t("captions.lookGlow")),
+                slint::SharedString::from(t("captions.lookNeon")),
+                slint::SharedString::from(t("captions.lookVhs")),
+                slint::SharedString::from(t("captions.lookChromatic")),
+                slint::SharedString::from(t("captions.lookBloomPulse")),
+                slint::SharedString::from(t("captions.lookHalation")),
+            ]))
+            .into(),
             motions: std::rc::Rc::new(slint::VecModel::from(vec![
                 slint::SharedString::from(t("captions.motionNone")),
                 slint::SharedString::from(t("captions.motionFade")),

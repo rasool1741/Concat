@@ -20,9 +20,9 @@
 //! rest stays put - is not here, and not approximated: it needs per-word
 //! styling in the text engine.
 
-use crate::commands::Command;
+use crate::commands::{ClipPatch, Command};
 use crate::model::ranges::MIN_CLIP_DURATION;
-use crate::model::{Clip, KeyEase, KeyProperty};
+use crate::model::{AppliedFilter, Clip, KeyEase, KeyProperty};
 
 /// Which way a slide comes from.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -204,6 +204,40 @@ pub struct Piece {
     pub duration: f64,
     /// The words.
     pub content: String,
+}
+
+/// The video effects a caption can be given from the Captions sheet, by
+/// the id of the effect package. The first entry of the sheet's list is
+/// "none"; these follow it, in the same order.
+pub const LOOK_IDS: [&str; 6] = [
+    "concat.glow",
+    "concat.neon",
+    "concat.vhs",
+    "concat.chromatic-aberration",
+    "concat.bloom-pulse",
+    "concat.halation",
+];
+
+/// Gives `clip` the video effect `look` (an id from [`LOOK_IDS`]) in place
+/// of any other of those it carries, or takes them all off when `look` is
+/// `None`. Effects the person added by hand are left where they are.
+pub fn look_command(clip: &Clip, look: Option<&str>) -> Command {
+    let mut effects: Vec<AppliedFilter> = clip
+        .video_effects
+        .iter()
+        .filter(|effect| !LOOK_IDS.contains(&effect.id.as_str()))
+        .cloned()
+        .collect();
+    if let Some(id) = look {
+        effects.push(AppliedFilter::new(id));
+    }
+    Command::UpdateClip {
+        clip_id: clip.id.clone(),
+        patch: ClipPatch {
+            video_effects: Some(effects),
+            ..ClipPatch::default()
+        },
+    }
 }
 
 /// The most pieces one caption is cut into, so a long caption cannot bury
@@ -559,6 +593,41 @@ mod tests {
             assert!(pair[1].content.starts_with(&pair[0].content));
         }
         tiles(&pieces, 0.0, 3.0);
+    }
+
+    #[test]
+    fn a_look_replaces_its_own_and_keeps_the_persons_effects() {
+        let (mut editor, id) = editor_with_clip(2.0);
+        let set = |editor: &mut Editor, look: Option<&str>| {
+            let clip = editor.project().active().clip(&id).expect("clip").clone();
+            editor.apply(look_command(&clip, look)).expect("applies");
+        };
+        let ids = |editor: &Editor| -> Vec<String> {
+            editor
+                .project()
+                .active()
+                .clip(&id)
+                .expect("clip")
+                .video_effects
+                .iter()
+                .map(|effect| effect.id.clone())
+                .collect()
+        };
+        editor
+            .apply(Command::UpdateClip {
+                clip_id: id.clone(),
+                patch: ClipPatch {
+                    video_effects: Some(vec![AppliedFilter::new("concat.vignette")]),
+                    ..ClipPatch::default()
+                },
+            })
+            .expect("hand-made effect");
+        set(&mut editor, Some("concat.glow"));
+        assert_eq!(ids(&editor), ["concat.vignette", "concat.glow"]);
+        set(&mut editor, Some("concat.neon"));
+        assert_eq!(ids(&editor), ["concat.vignette", "concat.neon"]);
+        set(&mut editor, None);
+        assert_eq!(ids(&editor), ["concat.vignette"]);
     }
 
     #[test]
