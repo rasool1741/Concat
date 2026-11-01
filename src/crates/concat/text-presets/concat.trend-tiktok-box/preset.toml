@@ -1,0 +1,17 @@
+id = "concat.trend-tiktok-box"
+name = "TikTok box"
+language = "Latin"
+order = 105
+offsetY = 0.2
+
+[style]
+content = "Boxed captions"
+fontFamily = "Inter"
+fontWeight = 800
+fontSize = 0.065
+color = "#ffffff"
+background = "#000000cc"
+backgroundRadius = 0.012
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.86

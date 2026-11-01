@@ -1,0 +1,17 @@
+id = "concat.trend-sticker"
+name = "Sticker"
+language = "Latin"
+order = 106
+offsetY = 0.2
+
+[style]
+content = "Sticker"
+fontFamily = "Inter"
+fontWeight = 800
+fontSize = 0.065
+color = "#111111"
+background = "#ffffffff"
+backgroundRadius = 0.02
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.86

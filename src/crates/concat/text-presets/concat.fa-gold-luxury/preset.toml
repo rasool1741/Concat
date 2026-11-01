@@ -1,0 +1,17 @@
+id = "concat.fa-gold-luxury"
+name = "طلایی لوکس"
+language = "Persian"
+order = 81
+offsetY = 0.2
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 700
+fontSize = 0.07
+color = "#f5c542"
+strokeWidth = 0.008
+strokeColor = "#3a2600"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

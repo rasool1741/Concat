@@ -1,0 +1,17 @@
+id = "concat.trend-outline"
+name = "Outline only"
+language = "Latin"
+order = 110
+offsetY = 0.2
+
+[style]
+content = "OUTLINE"
+fontFamily = "Anton"
+fontWeight = 400
+fontSize = 0.13
+color = "#00000000"
+strokeWidth = 0.012
+strokeColor = "#ffffff"
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.86

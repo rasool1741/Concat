@@ -1,0 +1,17 @@
+id = "concat.trend-lower-third-pro"
+name = "Lower third pro"
+language = "Latin"
+order = 115
+offsetY = 0.38
+
+[style]
+content = "Name · Title"
+fontFamily = "Inter"
+fontWeight = 600
+fontSize = 0.045
+color = "#ffffff"
+background = "#111111e6"
+backgroundRadius = 0.006
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.7

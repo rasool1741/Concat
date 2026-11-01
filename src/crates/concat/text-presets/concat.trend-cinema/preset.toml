@@ -1,0 +1,15 @@
+id = "concat.trend-cinema"
+name = "Cinema"
+language = "Latin"
+order = 107
+offsetY = 0.36
+
+[style]
+content = "Cinema subtitles"
+fontFamily = "Inter"
+fontWeight = 500
+fontSize = 0.05
+color = "#ffffff"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

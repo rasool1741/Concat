@@ -1,0 +1,17 @@
+id = "concat.trend-tall-poster"
+name = "Tall poster"
+language = "Latin"
+order = 114
+offsetY = 0.2
+
+[style]
+content = "TALL POSTER"
+fontFamily = "Staatliches"
+fontWeight = 400
+fontSize = 0.12
+color = "#ffffff"
+strokeWidth = 0.01
+strokeColor = "#000000"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

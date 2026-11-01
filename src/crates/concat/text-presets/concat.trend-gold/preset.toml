@@ -1,0 +1,17 @@
+id = "concat.trend-gold"
+name = "Gold luxury"
+language = "Latin"
+order = 109
+offsetY = 0.2
+
+[style]
+content = "Gold luxury"
+fontFamily = "DM Serif Display"
+fontWeight = 400
+fontSize = 0.075
+color = "#f5c542"
+strokeWidth = 0.008
+strokeColor = "#3a2600"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

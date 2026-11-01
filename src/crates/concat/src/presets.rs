@@ -375,7 +375,10 @@ mod tests {
             .into_iter()
             .filter(|preset| preset.language == "Persian")
             .collect();
-        assert_eq!(persian.len(), 9, "the nine looks the subtitle tool offers");
+        assert!(
+            persian.len() >= 46,
+            "the nine first looks and the trend looks after them"
+        );
         for preset in persian {
             assert!(
                 preset

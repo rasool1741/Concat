@@ -1,0 +1,17 @@
+id = "concat.trend-marker-hand"
+name = "Hand marker"
+language = "Latin"
+order = 113
+offsetY = 0.2
+
+[style]
+content = "Hand written"
+fontFamily = "Permanent Marker"
+fontWeight = 400
+fontSize = 0.075
+color = "#ffffff"
+strokeWidth = 0.01
+strokeColor = "#000000"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

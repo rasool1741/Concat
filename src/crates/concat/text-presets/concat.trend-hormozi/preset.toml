@@ -1,0 +1,17 @@
+id = "concat.trend-hormozi"
+name = "Hormozi"
+language = "Latin"
+order = 100
+offsetY = 0.2
+
+[style]
+content = "HORMOZI STYLE"
+fontFamily = "Montserrat"
+fontWeight = 900
+fontSize = 0.085
+color = "#ffe600"
+strokeWidth = 0.014
+strokeColor = "#000000"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

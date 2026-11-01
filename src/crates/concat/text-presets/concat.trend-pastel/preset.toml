@@ -1,0 +1,17 @@
+id = "concat.trend-pastel"
+name = "Pastel pink"
+language = "Latin"
+order = 112
+offsetY = 0.2
+
+[style]
+content = "Soft pastel"
+fontFamily = "Lobster"
+fontWeight = 400
+fontSize = 0.08
+color = "#ff7eb6"
+strokeWidth = 0.01
+strokeColor = "#ffffff"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

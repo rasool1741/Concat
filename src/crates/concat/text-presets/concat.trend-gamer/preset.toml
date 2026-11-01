@@ -1,0 +1,17 @@
+id = "concat.trend-gamer"
+name = "Gamer"
+language = "Latin"
+order = 111
+offsetY = 0.2
+
+[style]
+content = "GAME ON"
+fontFamily = "Black Ops One"
+fontWeight = 400
+fontSize = 0.09
+color = "#9dff00"
+strokeWidth = 0.016
+strokeColor = "#101010"
+shadow = true
+lineHeight = 1.3
+maxWidth = 0.86

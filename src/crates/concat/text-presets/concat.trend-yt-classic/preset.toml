@@ -1,0 +1,17 @@
+id = "concat.trend-yt-classic"
+name = "YouTube classic"
+language = "Latin"
+order = 108
+offsetY = 0.35
+
+[style]
+content = "Classic captions"
+fontFamily = "Inter"
+fontWeight = 600
+fontSize = 0.05
+color = "#ffff66"
+background = "#000000b3"
+backgroundRadius = 0.006
+shadow = false
+lineHeight = 1.3
+maxWidth = 0.86

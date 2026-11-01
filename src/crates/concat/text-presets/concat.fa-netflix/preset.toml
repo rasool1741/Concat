@@ -1,0 +1,15 @@
+id = "concat.fa-netflix"
+name = "فیلم و سریال"
+language = "Persian"
+order = 75
+offsetY = 0.36
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 500
+fontSize = 0.05
+color = "#ffffff"
+shadow = true
+lineHeight = 1.35
+maxWidth = 0.86

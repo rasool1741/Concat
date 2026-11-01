@@ -1,0 +1,15 @@
+id = "concat.fa-documentary"
+name = "مستند"
+language = "Persian"
+order = 77
+offsetY = 0.37
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 400
+fontSize = 0.048
+color = "#f2f2f2"
+shadow = true
+lineHeight = 1.45
+maxWidth = 0.86

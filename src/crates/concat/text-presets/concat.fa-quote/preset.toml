@@ -1,0 +1,15 @@
+id = "concat.fa-quote"
+name = "نقل‌قول"
+language = "Persian"
+order = 92
+offsetY = 0.1
+
+[style]
+content = "سلام، به زیرنویس خوش آمدید"
+fontFamily = "Noto Sans Arabic UI"
+fontWeight = 400
+fontSize = 0.065
+color = "#fff4d6"
+shadow = true
+lineHeight = 1.5
+maxWidth = 0.75
