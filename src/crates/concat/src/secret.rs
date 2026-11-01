@@ -23,7 +23,7 @@ pub trait KeyStore {
 }
 
 /// The operating system's store: Credential Manager, the keychain, the
-/// kernel keyring. Phones have none this app can reach, and say so.
+/// kernel keyring. Phones use a private file instead (see below).
 pub struct OsKeyStore;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -57,23 +57,51 @@ mod os {
     }
 }
 
+/// Phones have no credential store this app can reach, so the key is a
+/// file in the app's own private storage: the system keeps it from every
+/// other app, and it is removed with the app. It is never in settings.json.
 #[cfg(any(target_os = "android", target_os = "ios"))]
 mod os {
+    use std::path::PathBuf;
+
     use super::{KeyStore, OsKeyStore};
 
-    const UNAVAILABLE: &str = "no secure key store on this platform";
+    fn path() -> Result<PathBuf, String> {
+        let dirs = concat_host::AppDirs::locate()?;
+        Ok(dirs.config.join("gemini.key"))
+    }
 
     impl KeyStore for OsKeyStore {
         fn load(&self) -> Result<Option<String>, String> {
-            Ok(None)
+            match std::fs::read_to_string(path()?) {
+                Ok(key) if key.trim().is_empty() => Ok(None),
+                Ok(key) => Ok(Some(key.trim().to_owned())),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+                Err(e) => Err(e.to_string()),
+            }
         }
 
-        fn save(&self, _key: &str) -> Result<(), String> {
-            Err(UNAVAILABLE.to_owned())
+        fn save(&self, key: &str) -> Result<(), String> {
+            let path = path()?;
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&path, key).map_err(|e| e.to_string())?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(())
         }
 
         fn clear(&self) -> Result<(), String> {
-            Ok(())
+            match std::fs::remove_file(path()?) {
+                Ok(()) => Ok(()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(e.to_string()),
+            }
         }
     }
 }
